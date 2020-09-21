@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+error_exit()
+{
+  echo "$1" 1>&2
+  exit 1
+}
+
+echo "balena-cli install:"
+[[ $EUID -ne 0 ]] && error_exit "This script must be run as root" 
+[ command -v npm &> /dev/null ] || error_exit "NodeJS 'npm' is required!"
+set -e
+npm install -g npm
+npm install balena-cli -g --production --unsafe-perm

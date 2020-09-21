@@ -1,0 +1,60 @@
+#!/usr/bin/env bash
+error_exit()
+{
+  echo "$1" 1>&2
+  exit 1
+}
+
+echo "balena-cli install:"
+[[ $EUID -ne 0 ]] && error_exit "This script must be run as root" 
+[ ! command -v jq &> /dev/null ] && error_exit "'jq' is required!"
+set -e
+
+latestrReleaseJSON=` 
+    curl -sk https://api.github.com/repos/balena-io/balena-cli/releases/latest 2>/dev/null
+    `
+latestReleaseVer=`
+    echo $latestrReleaseJSON |
+    jq -r '.name' \
+    `
+latestReleaseZips=`
+    echo $latestrReleaseJSON |
+    jq -r '.assets[]' \
+    `
+latestReleaseZipFN=` 
+    echo $latestReleaseZips | 
+    jq -r "select(.name | contains(\"linux-x64\")) | .name" \
+    `
+latestReleaseZipURL=` 
+    echo $latestReleaseZips | 
+    jq -r "select(.name ==\"$latestReleaseZipFN\") | .browser_download_url" \
+    `
+echo "... $latestReleaseVer is the latest version"
+
+echo "... Downloading $latestReleaseZipFN"    
+curl -LOk $latestReleaseZipURL 
+latestReleaseZipFPN="$(pwd)/$latestReleaseZipFN"
+
+echo "... Unziping  $latestReleaseZipFN"
+if command -v 7z &> /dev/null; then
+     7z x -y  $latestReleaseZipFN | tail -n +7
+elif command -v unzip &> /dev/null; then
+    unzip -o $latestReleaseZipFN
+else
+    error_exit "'7z' or 'unzip' is required!"
+fi
+
+echo "... removing $latestReleaseZipFN"
+rm -f $latestReleaseZipFN
+
+echo "... moving balena-cli to /usr/local"
+[ -d  "/usr/local/balena-cli" ] &&  rm -rf  /usr/local/balena-cli
+mv -f ./balena-cli /usr/local
+
+echo "... adding link in /usr/local/bin"
+ln -sf /usr/local/balena-cli/balena /usr/local/bin/balena
+bash -c 'echo "balena-cli installed: $(which balena) v$(balena version)"'
+echo To reset the command location hash either start a new shell, or execute PATH="$PATH"
+
+
+

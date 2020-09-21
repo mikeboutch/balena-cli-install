@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+error_exit()
+{
+  echo "$1" 1>&2
+  exit 1
+}
+
+[[ $EUID -ne 0 ]] && error_exit "This script must be run as root" 
+command -v npm  &> /dev/null || error_exit "'npm' is required!"
+
+echo "Current NodeJS version $(node --version)"
+set -e
+echo "Current NPM version $(npm --version)"
+
+npm cache clean -f
+npm install -g npm
+npm install -g n
+n stable
